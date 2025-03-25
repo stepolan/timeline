@@ -54,15 +54,19 @@ def format_date(date, granularity):
 
 def create_timeline(milestones_df, granularity, alternate_sides=True, 
                    show_lines=True, date_distance=0.10, milestone_distance=0.85,
-                   line_length=0.35, dash_density=0.6):
+                   line_length=0.35, dash_density=0.6, dpi=300,
+                   milestone_color='#CCCCCC', line_color='#808080',
+                   date_color='white', timeline_color='#14823C',
+                   circle_color='#808080', background_color='black',
+                   show_title=True, title_text="Startup Progress Timeline"):
     if len(milestones_df) == 0:
         return None
         
     # Create the figure and axis with dark background
     plt.style.use('dark_background')
-    fig, ax = plt.subplots(figsize=(12, 6))
-    fig.patch.set_facecolor('black')
-    ax.set_facecolor('black')
+    fig, ax = plt.subplots(figsize=(12, 6), dpi=dpi)
+    fig.patch.set_facecolor(background_color)
+    ax.set_facecolor(background_color)
 
     # Sort milestones by date
     milestones_df = milestones_df.sort_values('date')
@@ -86,28 +90,28 @@ def create_timeline(milestones_df, granularity, alternate_sides=True,
             end_x = i + 1
             if is_future[i] or is_future[i + 1]:
                 # If either milestone is in future, use dashed line
-                ax.hlines(1, start_x, end_x, linewidth=2, color='#14823C',
+                ax.hlines(1, start_x, end_x, linewidth=2, color=timeline_color,
                          linestyles=(0, (2, dash_density)))
             else:
                 # Both milestones are past, use solid line
-                ax.hlines(1, start_x, end_x, linewidth=2, color='#14823C')
+                ax.hlines(1, start_x, end_x, linewidth=2, color=timeline_color)
     
     # Draw first and last segments of timeline
     if len(milestones) > 0:
         # First segment (to first milestone)
         if is_future[0]:
-            ax.hlines(1, -0.5, 0, linewidth=2, color='#14823C',
+            ax.hlines(1, -0.5, 0, linewidth=2, color=timeline_color,
                      linestyles=(0, (2, dash_density)))
         else:
-            ax.hlines(1, -0.5, 0, linewidth=2, color='#14823C')
+            ax.hlines(1, -0.5, 0, linewidth=2, color=timeline_color)
         
         # Last segment (after last milestone)
         if is_future[-1]:
             ax.hlines(1, len(milestones)-1, len(milestones)-0.5, linewidth=2, 
-                     color='#14823C', linestyles=(0, (2, dash_density)))
+                     color=timeline_color, linestyles=(0, (2, dash_density)))
         else:
             ax.hlines(1, len(milestones)-1, len(milestones)-0.5, linewidth=2, 
-                     color='#14823C')
+                     color=timeline_color)
 
     # Plot milestones with annotations
     for i, (date, milestone, future) in enumerate(zip(formatted_dates, milestones, is_future)):
@@ -132,18 +136,18 @@ def create_timeline(milestones_df, granularity, alternate_sides=True,
         if future:
             # Future milestone: open circle
             ax.plot(i, 1, marker='o', markersize=10, markerfacecolor='none', 
-                   markeredgewidth=2, color='#808080')
+                   markeredgewidth=2, color=circle_color)
         else:
             # Past milestone: filled circle
-            ax.plot(i, 1, marker='o', markersize=10, color='#808080')
+            ax.plot(i, 1, marker='o', markersize=10, color=circle_color)
 
         # Draw connecting lines if enabled
         if show_lines:
-            ax.vlines(i, line_start, line_end, color='#808080', alpha=0.7)
+            ax.vlines(i, line_start, line_end, color=line_color, alpha=0.7)
 
         # Annotate the date
         ax.text(i, date_y, date, ha='center', va='bottom' if date_is_above else 'top',
-                fontsize=10, fontweight='bold', color='white')
+                fontsize=10, fontweight='bold', color=date_color)
 
         # Process milestone text with proper line breaks
         lines = milestone.split('\n')
@@ -163,7 +167,7 @@ def create_timeline(milestones_df, granularity, alternate_sides=True,
             text_y = text_start_y - (j * line_height)  # Always move down
             ax.text(i, text_y, line, ha='center', 
                    va='bottom' if milestone_is_above else 'top',
-                   fontsize=8, color='#CCCCCC')
+                   fontsize=8, color=milestone_color)
 
     # Adjust plot limits and remove axes
     ax.set_xlim(-0.5, len(milestones)-0.5)
@@ -171,7 +175,10 @@ def create_timeline(milestones_df, granularity, alternate_sides=True,
     y_margin = max_distance + 0.1 * max(len(m.split('\n')) for m in milestones)
     ax.set_ylim(1 - y_margin - 0.2, 1 + y_margin + 0.2)
     ax.axis('off')
-    ax.set_title("Startup Progress Timeline", fontsize=12, pad=20, color='white')
+    
+    # Only show title if enabled
+    if show_title:
+        ax.set_title(title_text, fontsize=12, pad=20, color=date_color)
     
     return fig
 
@@ -198,34 +205,81 @@ def main():
         except Exception as e:
             st.error(f"Error uploading file: {str(e)}")
     
-    # Styling options in columns
-    col1, col2 = st.columns(2)
-    with col1:
-        alternate_sides = st.toggle("Alternate milestone positions", value=True)
-    with col2:
-        show_lines = st.toggle("Show connecting lines", value=True)
+    # Create tabs for settings
+    tab1, tab2, tab3 = st.tabs(["Timeline Layout", "Visual Style", "Colors"])
     
-    # Distance and line controls
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        date_distance = st.slider("Date Distance from Line", 0.1, 1.0, 0.10, 0.01)
-    with col2:
-        milestone_distance = st.slider("Description Distance from Line", 0.1, 1.0, 0.85, 0.01)
-    with col3:
-        line_length = st.slider("Line Length", 0.1, 1.0, 0.35, 0.05,
-                              help="Controls how far the connecting lines extend (as a fraction of the milestone distance)")
+    with tab1:
+        st.markdown("### Basic Layout")
+        col1, col2 = st.columns(2)
+        with col1:
+            alternate_sides = st.toggle("Alternate milestone positions", value=True)
+        with col2:
+            show_lines = st.toggle("Show connecting lines", value=True)
 
-    # Dash density control for future milestones
-    dash_density = st.slider("Dash Density for Future Timeline", 0.5, 5.0, 0.6, 0.1,
-                           help="Controls the density of dashes in future timeline segments (higher = more dense)")
-    
-    # Granularity selector
-    granularity = st.selectbox(
-        "Select Date Granularity",
-        ["Date", "Month", "Quarter", "Year"]
-    )
+        st.markdown("### Distance Controls")
+        col1, col2 = st.columns(2)
+        with col1:
+            milestone_distance = st.slider("Description Distance", 0.1, 1.0, 0.85, 0.01,
+                                        help="Distance of milestone descriptions from the timeline")
+            date_distance = st.slider("Date Distance", 0.1, 1.0, 0.10, 0.01,
+                                    help="Distance of dates from the timeline")
+        with col2:
+            line_length = st.slider("Connecting Line Length", 0.1, 1.0, 0.35, 0.05,
+                                  help="How far the connecting lines extend (as a fraction of the milestone distance)")
+            
+    with tab2:
+        st.markdown("### Timeline Style")
+        col1, col2 = st.columns(2)
+        with col1:
+            dash_density = st.slider("Future Timeline Dash Density", 0.5, 5.0, 0.6, 0.1,
+                                   help="Controls the density of dashes in future timeline segments")
+        with col2:
+            dpi = st.slider("Image Quality (DPI)", 100, 1200, 300, 50,
+                           help="Higher values create sharper images but may be slower to render")
+
+        st.markdown("### Title Settings")
+        col1, col2 = st.columns(2)
+        with col1:
+            show_title = st.toggle("Show Title", value=True,
+                                 help="Toggle timeline title visibility")
+        with col2:
+            title_text = st.text_input("Title Text", value="Startup Progress Timeline",
+                                     help="Customize the timeline title",
+                                     disabled=not show_title)
+
+        st.markdown("### Date Format")
+        granularity = st.selectbox(
+            "Date Granularity",
+            ["Date", "Month", "Quarter", "Year"],
+            help="Choose how dates should be displayed"
+        )
+
+    with tab3:
+        st.markdown("### Timeline Colors")
+        col1, col2 = st.columns(2)
+        with col1:
+            timeline_color = st.color_picker("Timeline", '#14823C',
+                                           help="Color of the main timeline line")
+            circle_color = st.color_picker("Milestone Circles", '#808080',
+                                         help="Color of the milestone circles")
+        with col2:
+            line_color = st.color_picker("Connecting Lines", '#808080',
+                                        help="Color of lines connecting milestones to descriptions")
+            background_color = st.color_picker("Background", '#000000',
+                                             help="Background color of the timeline")
+
+        st.markdown("### Text Colors")
+        col1, col2 = st.columns(2)
+        with col1:
+            milestone_color = st.color_picker("Descriptions", '#CCCCCC',
+                                            help="Color of milestone descriptions")
+        with col2:
+            date_color = st.color_picker("Dates", '#FFFFFF',
+                                        help="Color of dates")
 
     # Input form
+    st.markdown("---")
+    st.markdown("### Add New Milestone")
     with st.form("milestone_form"):
         col1, col2 = st.columns([1, 2])
         
@@ -272,12 +326,19 @@ def main():
                 hide_index=True
             )
             
+            # Add refresh button
+            if st.button("Refresh Visualization"):
+                st.rerun()
+            
             # Generate and display timeline
             fig = create_timeline(st.session_state.milestones_df, granularity, 
                                 alternate_sides, show_lines, date_distance, 
-                                milestone_distance, line_length, dash_density)
+                                milestone_distance, line_length, dash_density, dpi,
+                                milestone_color, line_color, date_color,
+                                timeline_color, circle_color, background_color,
+                                show_title, title_text)
             if fig:
-                st.pyplot(fig)
+                st.pyplot(fig, clear_figure=True)  # Add clear_figure=True to prevent memory leaks
         
         with tab2:
             # Edit existing milestones

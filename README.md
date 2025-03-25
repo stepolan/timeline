@@ -20,7 +20,7 @@ A Streamlit-based timeline visualization tool that allows users to create, edit,
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/YOUR_USERNAME/timeline.git
+git clone https://github.com/stepolan/timeline.git
 cd timeline
 ```
 
